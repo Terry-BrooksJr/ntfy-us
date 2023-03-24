@@ -1,0 +1,50 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.19.x'
+      -
+        name: Install node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+      -
+        name: Checkout code
+        uses: actions/checkout@v2
+      -
+        name: Cache Go and npm modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/go/bin
+            ~/.npm
+            web/node_modules
+          key: ${{ runner.os }}-ntfy-${{ hashFiles('**/go.sum', '**/package.lock') }}
+          restore-keys: ${{ runner.os }}-ntfy-
+      -
+        name: Docker login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      -
+        name: Install dependencies
+        run: make build-deps-ubuntu
+      -
+        name: Build and publish
+        run: make release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Print build results and checksums
+        run: make cli-build-results
